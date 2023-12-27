@@ -41,22 +41,21 @@ let difficulty = '';
 let uploadState = { uploading: false };
 
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
-const upload = (
-  token,
-  hook,
-  code,
-  problem,
-  filename,
-  sha,
-  commitMsg,
-  cb = undefined,
-  difficulty,
-  language,
-) => {
-  console.log('coming here 4');
+const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undefined) => {
+  let language;
+  if (filename.includes('.py')) {
+    language = 'python';
+  } else if (filename.includes('.cpp')) {
+    language = 'cpp';
+  } else if (filename.includes('.java')) {
+    language = 'java';
+  } else if (filename.includes('.js')) {
+    language = 'javascript';
+  }
 
-  const URL = `https://api.github.com/repos/${hook}/contents/${language}-solutions/${difficulty}/${filename}`;
-  console.log('uploading to ' + URL);
+  //   difficulty = difficulty === unknown ? 'unknown-difficulty' : difficulty;
+
+  const URL = `https://api.github.com/repos/${hook}/contents/${language}/${difficulty}/${filename}`;
 
   /* Define Payload */
   let data = {
@@ -66,6 +65,7 @@ const upload = (
   };
 
   data = JSON.stringify(data);
+
   let options = {
     method: 'PUT',
     headers: {
@@ -151,8 +151,6 @@ const update = (
   shouldPreprendDiscussionPosts,
   cb = undefined,
 ) => {
-  console.log('test1');
-
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
 
   let options = {
@@ -194,8 +192,6 @@ function uploadGit(
   shouldPrependDiscussionPosts = false,
   cb = undefined,
   _diff = undefined,
-  difficulty = 'easy',
-  language = 'javascript',
 ) {
   // Assign difficulty
   if (_diff && _diff !== undefined) {
@@ -204,7 +200,6 @@ function uploadGit(
 
   let token;
   let hook;
-  console.log('coming here 2');
 
   return chrome.storage.local
     .get('leethub_token')
@@ -235,20 +230,8 @@ function uploadGit(
           stats?.shas?.[problemName]?.[fileName] !== undefined
             ? stats.shas[problemName][fileName]
             : '';
-        console.log('coming here 3');
 
-        return upload(
-          token,
-          hook,
-          code,
-          problemName,
-          fileName,
-          sha,
-          commitMsg,
-          cb,
-          difficulty,
-          language,
-        );
+        return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
       } else if (action === 'update') {
         return update(
           token,
@@ -271,25 +254,13 @@ function uploadGit(
     })
     .then(data =>
       data != null
-        ? upload(
-            token,
-            hook,
-            code,
-            problemName,
-            fileName,
-            data.sha,
-            commitMsg,
-            cb,
-            difficulty,
-            language,
-          )
+        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb)
         : undefined,
     );
 }
 
 /* Gets updated GitHub data for the specific file in repo in question */
 async function getUpdatedData(token, hook, directory, filename) {
-  console.log('test2');
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
 
   let options = {
@@ -368,7 +339,7 @@ document.addEventListener('click', event => {
         const currentDate = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} at ${date.getHours()}:${date.getMinutes()}`;
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
-        console.log('coming here');
+
         uploadGit(addition, problemName, 'README.md', discussionMsg, 'update', true);
       }
     }, 1000);
@@ -392,8 +363,6 @@ LeetCodeV1.prototype.findAndUploadCode = function (
   commitMsg,
   action,
   cb = undefined,
-  language,
-  difficulty,
 ) {
   /* Get the submission details url from the submission page. */
   let submissionURL;
@@ -458,9 +427,8 @@ LeetCodeV1.prototype.findAndUploadCode = function (
             );
             commitMsg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
           }
-          if (code != null) {
-            console.log('@@@@@@@@@@@@@  ', problemName, language, difficulty);
 
+          if (code != null) {
             return uploadGit(
               btoa(unescape(encodeURIComponent(code))),
               problemName,
@@ -469,8 +437,6 @@ LeetCodeV1.prototype.findAndUploadCode = function (
               action,
               false,
               cb,
-              difficulty,
-              language,
             );
           }
         }
@@ -747,9 +713,7 @@ LeetCodeV2.prototype.findAndUploadCode = function (
   if (!code) {
     throw new Error('No solution code found');
   }
-  const difficulty = this.parseDifficulty();
-  const language = this.getLanguageExtension();
-  console.log('coming here 1 ', difficulty);
+
   return uploadGit(
     btoa(unescape(encodeURIComponent(code))),
     problemName,
@@ -758,8 +722,6 @@ LeetCodeV2.prototype.findAndUploadCode = function (
     action,
     false,
     cb,
-    difficulty,
-    language,
   );
 };
 LeetCodeV2.prototype.getCode = function () {
@@ -893,18 +855,6 @@ LeetCodeV2.prototype.parseDifficulty = function () {
   // Else, we're not on the description page. Nothing we can do.
   return 'unknown';
 };
-LeetCodeV1.prototype.parseDifficulty = function () {
-  if (this.submissionData != null) {
-    return this.submissionData.question.difficulty;
-  }
-
-  const diffElement = document.getElementsByClassName('mt-3 flex space-x-4');
-  if (checkElem(diffElement)) {
-    return diffElement[0].children[0].innerText;
-  }
-  // Else, we're not on the description page. Nothing we can do.
-  return 'unknown';
-};
 LeetCodeV2.prototype.startSpinner = function () {
   let elem = document.getElementById('leethub_progress_anchor_element');
   if (!elem) {
@@ -1027,14 +977,12 @@ const loader = () => {
       const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
       const language = leetCode.getLanguageExtension();
-      const difficulty = leetCode.parseDifficulty();
       if (!language) {
         throw new Error('Could not find language');
       }
 
       // start upload indicator here
       leetCode.startSpinner();
-      console.log('@@@@@@@@@@@@@  ', problemName, language, difficulty);
 
       /* Upload code to Git */
       const updateCode = leetCode.findAndUploadCode(
@@ -1042,8 +990,6 @@ const loader = () => {
         problemName + language,
         probStats,
         'upload',
-        language,
-        difficulty,
       );
 
       await Promise.all([updateCode]);
@@ -1058,7 +1004,6 @@ const loader = () => {
       uploadState.uploading = false;
       leetCode.markUploadFailed();
       clearInterval(intervalId);
-      console.log('##########  ', err);
       console.error(err);
     }
   }, 1000);
