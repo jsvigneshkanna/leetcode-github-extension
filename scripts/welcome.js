@@ -83,7 +83,7 @@ const createRepo = (token, name) => {
     private: true,
     auto_init: true,
     description:
-      'Collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)',
+      'Collection of LeetCode questions to ace the coding interview! - Created using [VK leetcode-github-extension](https://github.com/jsvigneshkanna/leetcode-github-extension)',
   };
   data = JSON.stringify(data);
 
