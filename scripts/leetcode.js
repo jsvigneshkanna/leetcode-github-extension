@@ -23,7 +23,7 @@ const languages = {
   Scala: '.scala',
   Swift: '.swift',
   TypeScript: '.ts',
-}
+};
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -41,8 +41,22 @@ let difficulty = '';
 let uploadState = { uploading: false };
 
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
-const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undefined) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${problem}/${filename}`;
+const upload = (
+  token,
+  hook,
+  code,
+  problem,
+  filename,
+  sha,
+  commitMsg,
+  cb = undefined,
+  difficulty,
+  language,
+) => {
+  console.log('coming here 4');
+
+  const URL = `https://api.github.com/repos/${hook}/contents/${language}-solutions/${difficulty}/${filename}`;
+  console.log('uploading to ' + URL);
 
   /* Define Payload */
   let data = {
@@ -52,7 +66,6 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
   };
 
   data = JSON.stringify(data);
-
   let options = {
     method: 'PUT',
     headers: {
@@ -138,6 +151,8 @@ const update = (
   shouldPreprendDiscussionPosts,
   cb = undefined,
 ) => {
+  console.log('test1');
+
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
 
   let options = {
@@ -157,12 +172,12 @@ const update = (
     .then(existingContent =>
       shouldPreprendDiscussionPosts
         ? // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
-        // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
-        // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
-        // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
-        // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
-        // btoa converts ASCII to base64.
-        btoa(unescape(encodeURIComponent(addition + existingContent)))
+          // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
+          // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
+          // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
+          // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
+          // btoa converts ASCII to base64.
+          btoa(unescape(encodeURIComponent(addition + existingContent)))
         : btoa(unescape(encodeURIComponent(existingContent))),
     )
     .then(newContent =>
@@ -179,6 +194,8 @@ function uploadGit(
   shouldPrependDiscussionPosts = false,
   cb = undefined,
   _diff = undefined,
+  difficulty = 'easy',
+  language = 'javascript',
 ) {
   // Assign difficulty
   if (_diff && _diff !== undefined) {
@@ -187,6 +204,7 @@ function uploadGit(
 
   let token;
   let hook;
+  console.log('coming here 2');
 
   return chrome.storage.local
     .get('leethub_token')
@@ -217,8 +235,20 @@ function uploadGit(
           stats?.shas?.[problemName]?.[fileName] !== undefined
             ? stats.shas[problemName][fileName]
             : '';
+        console.log('coming here 3');
 
-        return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
+        return upload(
+          token,
+          hook,
+          code,
+          problemName,
+          fileName,
+          sha,
+          commitMsg,
+          cb,
+          difficulty,
+          language,
+        );
       } else if (action === 'update') {
         return update(
           token,
@@ -241,13 +271,25 @@ function uploadGit(
     })
     .then(data =>
       data != null
-        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb)
+        ? upload(
+            token,
+            hook,
+            code,
+            problemName,
+            fileName,
+            data.sha,
+            commitMsg,
+            cb,
+            difficulty,
+            language,
+          )
         : undefined,
     );
 }
 
 /* Gets updated GitHub data for the specific file in repo in question */
 async function getUpdatedData(token, hook, directory, filename) {
+  console.log('test2');
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
 
   let options = {
@@ -326,7 +368,7 @@ document.addEventListener('click', event => {
         const currentDate = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} at ${date.getHours()}:${date.getMinutes()}`;
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
-
+        console.log('coming here');
         uploadGit(addition, problemName, 'README.md', discussionMsg, 'update', true);
       }
     }, 1000);
@@ -338,7 +380,7 @@ function LeetCodeV1() {
   this.progressSpinnerElementClass = 'leethub_progress';
   this.injectSpinnerStyle();
 }
-LeetCodeV1.prototype.init = async function () { };
+LeetCodeV1.prototype.init = async function () {};
 /* Function for finding and parsing the full code. */
 /* - At first find the submission details url. */
 /* - Then send a request for the details page. */
@@ -350,6 +392,8 @@ LeetCodeV1.prototype.findAndUploadCode = function (
   commitMsg,
   action,
   cb = undefined,
+  language,
+  difficulty,
 ) {
   /* Get the submission details url from the submission page. */
   let submissionURL;
@@ -414,8 +458,9 @@ LeetCodeV1.prototype.findAndUploadCode = function (
             );
             commitMsg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
           }
-
           if (code != null) {
+            console.log('@@@@@@@@@@@@@  ', problemName, language, difficulty);
+
             return uploadGit(
               btoa(unescape(encodeURIComponent(code))),
               problemName,
@@ -424,6 +469,8 @@ LeetCodeV1.prototype.findAndUploadCode = function (
               action,
               false,
               cb,
+              difficulty,
+              language,
             );
           }
         }
@@ -700,7 +747,9 @@ LeetCodeV2.prototype.findAndUploadCode = function (
   if (!code) {
     throw new Error('No solution code found');
   }
-
+  const difficulty = this.parseDifficulty();
+  const language = this.getLanguageExtension();
+  console.log('coming here 1 ', difficulty);
   return uploadGit(
     btoa(unescape(encodeURIComponent(code))),
     problemName,
@@ -709,6 +758,8 @@ LeetCodeV2.prototype.findAndUploadCode = function (
     action,
     false,
     cb,
+    difficulty,
+    language,
   );
 };
 LeetCodeV2.prototype.getCode = function () {
@@ -740,7 +791,7 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
 
   return languages[lang];
 };
-LeetCodeV2.prototype.getNotesIfAny = function () { };
+LeetCodeV2.prototype.getNotesIfAny = function () {};
 LeetCodeV2.prototype.getProblemNameSlug = function () {
   const slugTitle = this.submissionData.question.titleSlug;
   const qNum = this.submissionData.question.questionId;
@@ -771,7 +822,7 @@ LeetCodeV2.prototype.parseStats = function () {
   }
 
   // Doesn't work unless we wait for page to finish loading.
-  setTimeout(() => { }, 1000);
+  setTimeout(() => {}, 1000);
   const probStats = document.getElementsByClassName('flex w-full pb-4')[0].innerText.split('\n');
   if (!checkElem(probStats)) {
     return null;
@@ -831,6 +882,18 @@ LeetCodeV2.prototype.parseQuestionDescription = function () {
   return description[0].content;
 };
 LeetCodeV2.prototype.parseDifficulty = function () {
+  if (this.submissionData != null) {
+    return this.submissionData.question.difficulty;
+  }
+
+  const diffElement = document.getElementsByClassName('mt-3 flex space-x-4');
+  if (checkElem(diffElement)) {
+    return diffElement[0].children[0].innerText;
+  }
+  // Else, we're not on the description page. Nothing we can do.
+  return 'unknown';
+};
+LeetCodeV1.prototype.parseDifficulty = function () {
   if (this.submissionData != null) {
     return this.submissionData.question.difficulty;
   }
@@ -964,42 +1027,14 @@ const loader = () => {
       const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
       const language = leetCode.getLanguageExtension();
+      const difficulty = leetCode.parseDifficulty();
       if (!language) {
         throw new Error('Could not find language');
       }
 
       // start upload indicator here
       leetCode.startSpinner();
-
-      /* Upload README */
-      const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
-        const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
-
-        if (!shaExists) {
-          return uploadGit(
-            btoa(unescape(encodeURIComponent(probStatement))),
-            problemName,
-            'README.md',
-            readmeMsg,
-            'upload',
-            false,
-          );
-        }
-      });
-
-      /* Upload Notes if any*/
-      notes = leetCode.getNotesIfAny();
-      let updateNotes;
-      if (notes != undefined && notes.length > 0) {
-        updateNotes = uploadGit(
-          btoa(unescape(encodeURIComponent(notes))),
-          problemName,
-          'NOTES.md',
-          createNotesMsg,
-          'upload',
-          false,
-        );
-      }
+      console.log('@@@@@@@@@@@@@  ', problemName, language, difficulty);
 
       /* Upload code to Git */
       const updateCode = leetCode.findAndUploadCode(
@@ -1007,9 +1042,11 @@ const loader = () => {
         problemName + language,
         probStats,
         'upload',
+        language,
+        difficulty,
       );
 
-      await Promise.all([updateReadMe, updateNotes, updateCode]);
+      await Promise.all([updateCode]);
 
       uploadState.uploading = false;
       leetCode.markUploaded();
@@ -1021,6 +1058,7 @@ const loader = () => {
       uploadState.uploading = false;
       leetCode.markUploadFailed();
       clearInterval(intervalId);
+      console.log('##########  ', err);
       console.error(err);
     }
   }, 1000);
@@ -1028,7 +1066,7 @@ const loader = () => {
 
 function handleCtrlEnter(event) {
   if (event.key === 'Enter' && event.ctrlKey) {
-    loader()
+    loader();
   }
 }
 
@@ -1041,6 +1079,6 @@ setTimeout(() => {
   const submitBtn = !isLeetCodeV2 ? v1SubmitBtn : v2SubmitBtn;
   submitBtn.addEventListener('click', loader);
 
-  const textarea = document.getElementsByTagName('textarea')[0]
-  textarea.addEventListener('keydown', handleCtrlEnter)
+  const textarea = document.getElementsByTagName('textarea')[0];
+  textarea.addEventListener('keydown', handleCtrlEnter);
 }, 2000);
