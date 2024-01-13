@@ -23,6 +23,7 @@ const languages = {
   Scala: '.scala',
   Swift: '.swift',
   TypeScript: '.ts',
+  Pandas: '.py',
 };
 
 /* Commit messages */
@@ -453,6 +454,8 @@ LeetCodeV1.prototype.getLanguageExtension = function () {
   if (tag && tag.length > 0) {
     for (let i = 0; i < tag.length; i += 1) {
       const elem = tag[i].textContent;
+      console.log('Language used: ', elem, 'Extension: ', languages[elem]);
+
       if (elem !== undefined && languages[elem] !== undefined) {
         return languages[elem];
       }
@@ -748,6 +751,7 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
   }
 
   const lang = tag.innerText;
+  console.log('Language used: ', lang, 'Extension: ', languages[lang]);
   if (languages[lang] === undefined) {
     throw new Error('Unknown Language: ' + { lang });
   }
