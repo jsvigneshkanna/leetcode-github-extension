@@ -51,8 +51,9 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
     language = 'java';
   } else if (filename.includes('.js')) {
     language = 'javascript';
+  } else if (filename.includes('sql')) {
+    language = 'MySQL';
   }
-
   //   difficulty = difficulty === unknown ? 'unknown-difficulty' : difficulty;
 
   const URL = `https://api.github.com/repos/${hook}/contents/${language}/${difficulty}/${filename}`;
@@ -1021,6 +1022,7 @@ function handleCtrlEnter(event) {
 setTimeout(() => {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
   const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
+  console.log('############ ', isLeetCodeV2, v1SubmitBtn, v2SubmitBtn);
   const submitBtn = !isLeetCodeV2 ? v1SubmitBtn : v2SubmitBtn;
   submitBtn.addEventListener('click', loader);
 
